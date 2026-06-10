@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>핸드폰 가두기 챌린지 랭킹</title>
+<style>
+  :root{--bg:#0f1226;--card:#171a35;--accent:#7c5cff;--accent2:#00d4ff;--text:#eef0ff;--sub:#9aa0c7;--warn:#ffb020}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:linear-gradient(160deg,#0f1226,#1a1340);min-height:100vh;font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:var(--text);padding:20px 14px calc(28px + env(safe-area-inset-bottom));display:flex;justify-content:center}
+  .card{width:600px;max-width:100%;background:var(--card);border-radius:24px;padding:26px 20px;box-shadow:0 20px 60px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.06)}
+  .head{text-align:center;margin-bottom:6px}
+  .head h1{font-size:24px;font-weight:800;letter-spacing:-.5px}
+  .head h1 .emoji{filter:drop-shadow(0 0 8px var(--accent))}
+  .head .sub{color:var(--sub);font-size:14px;margin-top:6px}
+
+  /* 업로드 (소유자/로컬용) */
+  .uploader{margin:18px 0 6px;text-align:center}
+  .pick{display:inline-flex;align-items:center;gap:8px;padding:15px 22px;border-radius:14px;font-size:16px;font-weight:700;color:#fff;background:linear-gradient(90deg,var(--accent),var(--accent2));cursor:pointer;border:none;width:100%;justify-content:center}
+  .pick:active{transform:scale(.99)}
+  input[type=file]{display:none}
+  .fname{color:var(--sub);font-size:12px;margin-top:8px;word-break:break-all}
+  .hint{color:var(--sub);font-size:12px;margin-top:10px;line-height:1.5}
+
+  /* 날짜 선택 */
+  .daterow{display:none;align-items:center;gap:8px;justify-content:center;margin:14px 0 2px}
+  .daterow label{color:var(--sub);font-size:13px}
+  .daterow input{background:rgba(255,255,255,.06);color:var(--text);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 10px;font-size:14px}
+
+  /* 탭 */
+  .tabs{display:none;gap:8px;justify-content:center;margin:18px 0 14px}
+  .tab{flex:1;max-width:200px;text-align:center;padding:11px 0;border-radius:12px;background:rgba(255,255,255,.05);color:var(--sub);font-weight:700;font-size:15px;cursor:pointer;border:1px solid transparent;user-select:none}
+  .tab.active{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;border-color:rgba(255,255,255,.15)}
+  .panel{display:none}.panel.active{display:block}
+  .panel-sub{text-align:center;color:var(--sub);font-size:13px;margin-bottom:12px}
+
+  ul{list-style:none;padding-top:14px}
+  .row{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:14px;margin-bottom:6px;background:rgba(255,255,255,.03)}
+  .row .rank{width:32px;text-align:center;font-size:19px;font-weight:700;flex:none}
+  .row .rank .num{font-size:15px;color:var(--sub)}
+  .row .name{flex:1;min-width:0;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .bar{width:64px;height:8px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden;flex:none}
+  .row .bar .fill{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px}
+  .row .time{width:90px;text-align:right;font-weight:700;font-size:14px;flex:none;font-variant-numeric:tabular-nums}
+  /* 1~3위 특별 디자인: 흐르는 금/은/동 테두리 + 발광 (이중 배경 테두리 기법) */
+  .row.top{position:relative;padding:14px 14px;margin-bottom:9px;border:2px solid transparent;
+    background-size:auto,220% 100%;background-position:0 0,0 0}
+  .row.top .rank{font-size:24px}
+  .row.top1{
+    background-image:linear-gradient(90deg,#2f2a16,#211d33),
+      linear-gradient(115deg,#fff7c4,#ffd700,#b8860b,#ffe680,#ffd700,#fff7c4);
+    background-origin:border-box;background-clip:padding-box,border-box;
+    animation:shine 3s linear infinite, glowGold 2.6s ease-in-out infinite}
+  .row.top2{
+    background-image:linear-gradient(90deg,#272935,#1d1e30),
+      linear-gradient(115deg,#ffffff,#d3d7e8,#8d92a8,#d3d7e8,#ffffff);
+    background-origin:border-box;background-clip:padding-box,border-box;
+    box-shadow:0 0 16px rgba(200,206,230,.22);animation:shine 3.6s linear infinite}
+  .row.top3{
+    background-image:linear-gradient(90deg,#2f2417,#211c30),
+      linear-gradient(115deg,#ffd9a8,#e0934a,#7a4a17,#e0934a,#ffd9a8);
+    background-origin:border-box;background-clip:padding-box,border-box;
+    box-shadow:0 0 16px rgba(214,140,69,.24);animation:shine 3.6s linear infinite}
+  .row.top1 .time{color:#ffe27a}
+  .row.top2 .time{color:#eef0ff}
+  .row.top3 .time{color:#ffcaa0}
+  @keyframes shine{from{background-position:0 0,0 0}to{background-position:0 0,220% 0}}
+  @keyframes glowGold{0%,100%{box-shadow:0 0 14px rgba(255,196,0,.22)}50%{box-shadow:0 0 28px rgba(255,196,0,.45)}}
+  /* 1위 왕관 + 챔피언 뱃지 */
+  .crown{position:absolute;top:-16px;left:11px;font-size:25px;z-index:3;pointer-events:none;
+    animation:bob 2s ease-in-out infinite;filter:drop-shadow(0 2px 7px rgba(255,205,0,.85))}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-5px) rotate(8deg)}}
+  .row.top1 .name{white-space:normal}
+  .row.top1 .nm{display:block;font-size:16px;font-weight:800}
+  /* 1위 반짝이 */
+  .spark{position:absolute;pointer-events:none;z-index:3;font-size:13px;animation:tw 1.6s ease-in-out infinite}
+  .spark.s1{top:3px;left:42px;animation-delay:0s}
+  .spark.s2{bottom:5px;left:64px;font-size:11px;animation-delay:.55s}
+  .spark.s3{top:7px;right:14px;font-size:12px;animation-delay:1.05s}
+  @keyframes tw{0%,100%{opacity:.12;transform:scale(.55)}50%{opacity:1;transform:scale(1.25)}}
+  @media (prefers-reduced-motion:reduce){.row.top,.crown,.spark{animation:none}}
+
+  /* 검토 영역 (소유자/로컬용) */
+  .review{display:none;margin-top:16px;border-top:1px solid rgba(255,255,255,.08);padding-top:14px}
+  .review > .rhead{display:flex;align-items:center;justify-content:space-between;cursor:pointer;color:var(--warn);font-size:13px;font-weight:700}
+  .review .rbody{display:none;margin-top:10px}
+  .review.open .rbody{display:block}
+  .review .rhead .chev{transition:transform .2s}
+  .review.open .rhead .chev{transform:rotate(180deg)}
+  .ritem{background:rgba(255,176,32,.07);border:1px solid rgba(255,176,32,.18);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+  .ritem .meta{color:var(--sub);font-size:11px;margin-bottom:4px}
+  .ritem .txt{font-size:12px;line-height:1.45;margin-bottom:8px;color:#dfe2ff}
+  .ritem .edit{display:flex;align-items:center;gap:8px}
+  .ritem .edit label{font-size:12px;color:var(--sub)}
+  .ritem .edit input{width:80px;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:7px 9px;font-size:14px;text-align:center;font-variant-numeric:tabular-nums}
+  .ritem .edit .unit{font-size:12px;color:var(--sub)}
+
+  .foot{text-align:center;color:var(--sub);font-size:12px;margin-top:18px}
+  .empty{text-align:center;color:var(--sub);font-size:13px;padding:24px 0}
+  .loading{text-align:center;color:var(--sub);font-size:14px;padding:30px 0}
+  /* 좁은 폰: 막대바 숨겨 이름 공간 확보 */
+  @media (max-width:440px){ .row .bar{display:none} .row .name{font-size:15px} }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="head">
+    <h1><span class="emoji">📵</span> 몰입 챌린지</h1>
+    <div class="sub">몰입시간 랭킹</div>
+  </div>
+
+  <div class="uploader" id="uploader" style="display:none">
+    <label class="pick">📂 카톡 대화 파일(.txt) 선택
+      <input type="file" id="file" accept=".txt,text/plain" />
+    </label>
+    <div class="fname" id="fname"></div>
+    <div class="hint" id="hint">카카오톡 → 채팅방 → 메뉴 → <b>대화 내보내기</b>(텍스트)로 저장한 .txt 파일을 선택하세요.<br>계산은 이 기기 안에서만 이뤄지고 어디로도 전송되지 않습니다.</div>
+  </div>
+
+  <div class="loading" id="loading">⏳ 랭킹 불러오는 중…</div>
+
+  <div class="daterow" id="daterow">
+    <label for="ddate">일간 기준일</label>
+    <input type="date" id="ddate" />
+  </div>
+
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-t="daily" onclick="switchTab('daily')">📅 일간</div>
+    <div class="tab" data-t="weekly" onclick="switchTab('weekly')">📊 주간</div>
+  </div>
+
+  <div class="panel active" id="daily"></div>
+  <div class="panel" id="weekly"></div>
+
+  <div class="review" id="review">
+    <div class="rhead" onclick="document.getElementById('review').classList.toggle('open')">
+      <span id="rcount">⚠️ 검토 필요 0건</span>
+      <span class="chev">▾</span>
+    </div>
+    <div class="rbody" id="rbody"></div>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+// ===== 설정 (challenge.js와 동일 규칙) =====
+var EXCLUDED_AUTHORS = {"오픈채팅봇":1, "더비랩":1};
+var FLAG_OVER_MIN = 600;
+var KNUM = {한:1,두:2,세:3,석:3,네:4,넉:4,다섯:5,여섯:6,일곱:7,여덟:8,아홉:9,열:10};
+var KOR = "한|두|세|석|네|넉|다섯|여섯|일곱|여덟|아홉|열";
+function makeTimeRe(){return new RegExp(
+  "(\\d+)\\s*시간\\s*(\\d+)\\s*분"+
+  "|(\\d+)\\s*시간\\s*반"+
+  "|(\\d+)\\s*시간"+
+  "|("+KOR+")\\s*시간\\s*반"+
+  "|("+KOR+")\\s*시간"+
+  "|(\\d+)\\s*분","g");}
+
+function extractMinutes(text){
+  var re=makeTimeRe(), vals=[], m;
+  while((m=re.exec(text))!==null){
+    if(m[0]===""){re.lastIndex++;continue;}
+    var mins=0;
+    if(m[1]!==undefined) mins=+m[1]*60+ +m[2];
+    else if(m[3]!==undefined) mins=+m[3]*60+30;
+    else if(m[4]!==undefined) mins=+m[4]*60;
+    else if(m[5]!==undefined) mins=KNUM[m[5]]*60+30;
+    else if(m[6]!==undefined) mins=KNUM[m[6]]*60;
+    else if(m[7]!==undefined) mins=+m[7];
+    if(mins>0) vals.push(mins);
+  }
+  return vals;
+}
+
+function parseText(raw){
+  var lines=raw.split(/\r?\n/);
+  var dateHdr=/^-{5,}\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(\S+)\s*-{5,}$/;
+  var msgHdr=/^\[(.+?)\]\s*\[(오전|오후)\s*(\d{1,2}):(\d{2})\]\s*(.*)$/;
+  var sysJoinLeave=/(님이 들어왔습니다\.?$|님이 나갔습니다\.?$|님을 내보냈습니다\.?$)/;
+  var curDate=null, cur=null, messages=[];
+  function flush(){ if(cur) messages.push(cur); cur=null; }
+  for(var i=0;i<lines.length;i++){
+    var line=lines[i], mm;
+    if((mm=line.match(dateHdr))){
+      flush();
+      curDate={iso:mm[1]+"-"+pad(mm[2])+"-"+pad(mm[3]), weekday:mm[4]};
+      continue;
+    }
+    if(sysJoinLeave.test(line)){ flush(); continue; }
+    if((mm=line.match(msgHdr))){
+      flush();
+      var a=mm[1].trim();
+      if(EXCLUDED_AUTHORS[a]){ cur=null; continue; }
+      var h=(+mm[3])%12; if(mm[2]==="오후") h+=12;
+      cur={date:curDate?curDate.iso:"unknown", weekday:curDate?curDate.weekday:"", time:pad(h)+":"+mm[4], author:a, text:mm[5]};
+      continue;
+    }
+    if(cur && line.trim()!=="") cur.text+=" "+line.trim();
+  }
+  flush();
+  return messages;
+}
+
+function pad(n){ n=String(n); return n.length<2?"0"+n:n; }
+function fmt(min){ var h=Math.floor(min/60), m=min%60; if(h&&m) return h+"시간 "+m+"분"; if(h) return h+"시간"; return m+"분"; }
+function isoWeek(dateStr){ var p=dateStr.split("-").map(Number); var d=new Date(Date.UTC(p[0],p[1]-1,p[2])); var day=(d.getUTCDay()+6)%7; d.setUTCDate(d.getUTCDate()-day); return d.toISOString().slice(0,10); }
+function weekLabel(mon){ var p=mon.split("-").map(Number); var a=new Date(Date.UTC(p[0],p[1]-1,p[2])); var b=new Date(a); b.setUTCDate(b.getUTCDate()+6); var f=function(x){return (x.getUTCMonth()+1)+"/"+x.getUTCDate();}; return f(a)+" ~ "+f(b); }
+
+// ===== overrides.csv 파싱 (소유자 검토 보정값) =====
+function parseOverrides(csv){
+  var map={}; if(!csv) return map;
+  var lines=csv.split(/\r?\n/);
+  for(var i=1;i<lines.length;i++){
+    var ln=lines[i]; if(!ln.trim()) continue;
+    // date,time,"nickname",minutes  (닉네임에 쉼표 없다고 가정, 따옴표만 제거)
+    var parts=ln.match(/^([^,]+),([^,]+),(?:"([^"]*)"|([^,]+)),(\d+)\s*$/);
+    if(!parts) continue;
+    var date=parts[1].trim(), time=parts[2].trim(), nick=(parts[3]!==undefined?parts[3]:parts[4]).trim(), min=+parts[5];
+    map[date+"|"+time+"|"+nick]=min;
+  }
+  return map;
+}
+
+// ===== 상태 =====
+var RECORDS=[];      // {date,time,author,autoMin,minutes,flag,reviewed,text,key}
+var SORTED_DATES=[];
+var OVERRIDES={};
+var VIEWER=false;    // true면 공유(읽기) 모드: 업로더/검토 숨김
+
+function buildRecords(messages){
+  var recs=[];
+  for(var i=0;i<messages.length;i++){
+    var vals=extractMinutes(messages[i].text);
+    if(vals.length===0) continue;
+    var minutes=Math.max.apply(null,vals);
+    var r=messages[i];
+    var key=r.date+"|"+r.time+"|"+r.author;
+    var flag=(minutes>FLAG_OVER_MIN||vals.length>1), reviewed=false;
+    if(OVERRIDES.hasOwnProperty(key)){ minutes=OVERRIDES[key]; reviewed=true; } // 보정값 적용
+    recs.push({date:r.date,time:r.time,author:r.author,autoMin:Math.max.apply(null,vals),minutes:minutes,
+      flag:flag,reviewed:reviewed,text:r.text,key:key});
+  }
+  return recs;
+}
+
+function aggregate(){
+  var dayMap={}, weekMap={}, dates={};
+  for(var i=0;i<RECORDS.length;i++){
+    var r=RECORDS[i];
+    dates[r.date]=1;
+    (dayMap[r.date]=dayMap[r.date]||{}); dayMap[r.date][r.author]=(dayMap[r.date][r.author]||0)+r.minutes;
+    var wk=isoWeek(r.date);
+    (weekMap[wk]=weekMap[wk]||{}); weekMap[wk][r.author]=(weekMap[wk][r.author]||0)+r.minutes;
+  }
+  SORTED_DATES=Object.keys(dates).sort();
+  return {dayMap:dayMap, weekMap:weekMap};
+}
+
+function rankObj(obj){ var a=[]; for(var k in obj) a.push([k,obj[k]]); a.sort(function(x,y){return y[1]-x[1];}); return a; }
+
+function listHTML(ranked){
+  if(!ranked.length) return '<div class="empty">이 날짜에는 인증 기록이 없어요.</div>';
+  var medal=["🥇","🥈","🥉"], max=ranked[0][1]||1, out="<ul>";
+  for(var i=0;i<ranked.length;i++){
+    var name=ranked[i][0], min=ranked[i][1], r=i+1;
+    var badge=medal[i]||'<span class="num">'+r+'</span>';
+    var top=i<3?(" top top"+r):"";
+    var crown=(i===0)?'<span class="crown">👑</span><span class="spark s1">✨</span><span class="spark s2">✨</span><span class="spark s3">✨</span>':'';
+    var nameHTML=(i===0)?'<span class="nm">'+esc(name)+'</span>':esc(name);
+    var w=Math.max(6,Math.round(min/max*100));
+    out+='<li class="row'+top+'">'+crown+'<span class="rank">'+badge+'</span>'+
+      '<span class="name">'+nameHTML+'</span>'+
+      '<span class="bar"><span class="fill" style="width:'+w+'%"></span></span>'+
+      '<span class="time">'+fmt(min)+'</span></li>';
+  }
+  return out+"</ul>";
+}
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function defaultDaily(){
+  var d=new Date(); d.setDate(d.getDate()-1);
+  var y=d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+  if(SORTED_DATES.indexOf(y)>=0) return y;
+  return SORTED_DATES.length?SORTED_DATES[SORTED_DATES.length-1]:null;
+}
+
+function render(){
+  var agg=aggregate();
+  var ddInput=document.getElementById("ddate");
+  var target=ddInput.value && SORTED_DATES.indexOf(ddInput.value)>=0 ? ddInput.value : defaultDaily();
+  if(!target){ return; }
+  ddInput.value=target;
+  ddInput.min=SORTED_DATES[0]; ddInput.max=SORTED_DATES[SORTED_DATES.length-1];
+
+  var wk=isoWeek(target);
+  var dp=target.split("-").map(Number);
+  document.getElementById("daily").innerHTML=
+    '<div class="panel-sub">'+dp[1]+'월 '+dp[2]+'일 몰입 랭킹</div>'+listHTML(rankObj(agg.dayMap[target]||{}));
+  document.getElementById("weekly").innerHTML=
+    '<div class="panel-sub">'+weekLabel(wk)+' 주간 누적</div>'+listHTML(rankObj(agg.weekMap[wk]||{}));
+
+  if(!VIEWER) renderReview();
+
+  document.getElementById("loading").style.display="none";
+  document.getElementById("daterow").style.display="flex";
+  document.getElementById("tabs").style.display="flex";
+}
+
+function renderReview(){
+  var flagged=RECORDS.filter(function(r){return r.flag && !r.reviewed;});
+  var box=document.getElementById("review");
+  document.getElementById("rcount").textContent="⚠️ 검토 필요 "+flagged.length+"건 (탭하면 펼침)";
+  if(!flagged.length){ box.style.display="none"; return; }
+  box.style.display="block";
+  var html="";
+  for(var i=0;i<flagged.length;i++){
+    var r=flagged[i];
+    html+='<div class="ritem"><div class="meta">'+r.date+' · '+esc(r.author)+'</div>'+
+      '<div class="txt">'+esc(r.text)+'</div>'+
+      '<div class="edit"><label>인정 시간(분):</label>'+
+      '<input type="number" min="0" inputmode="numeric" value="'+r.minutes+'" data-key="'+esc(r.key)+'">'+
+      '<span class="unit">= '+fmt(r.minutes)+'</span></div></div>';
+  }
+  document.getElementById("rbody").innerHTML=html;
+  var inputs=document.querySelectorAll("#rbody input");
+  for(var j=0;j<inputs.length;j++){
+    inputs[j].addEventListener("change",function(e){
+      var key=e.target.getAttribute("data-key"), v=parseInt(e.target.value,10);
+      if(isNaN(v)||v<0) v=0;
+      for(var k=0;k<RECORDS.length;k++) if(RECORDS[k].key===key){ RECORDS[k].minutes=v; RECORDS[k].reviewed=true; }
+      render();
+    });
+  }
+}
+
+function switchTab(t){
+  var tabs=document.querySelectorAll(".tab");
+  for(var i=0;i<tabs.length;i++) tabs[i].classList.toggle("active",tabs[i].getAttribute("data-t")===t);
+  document.getElementById("daily").classList.toggle("active",t==="daily");
+  document.getElementById("weekly").classList.toggle("active",t==="weekly");
+}
+
+// ===== 파일 직접 선택 (로컬/소유자용 fallback) =====
+function enableUploader(){
+  document.getElementById("uploader").style.display="block";
+  document.getElementById("loading").style.display="none";
+}
+document.getElementById("file").addEventListener("change",function(e){
+  var f=e.target.files[0]; if(!f) return;
+  document.getElementById("fname").textContent="📄 "+f.name;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var msgs=parseText(ev.target.result);
+      RECORDS=buildRecords(msgs);
+      if(!RECORDS.length){ alert("시간 인증 메시지를 찾지 못했어요. 올바른 카카오톡 .txt 파일인지 확인해주세요."); return; }
+      VIEWER=false;
+      document.getElementById("ddate").value="";
+      render();
+      document.getElementById("hint").style.display="none";
+    }catch(err){ alert("파일을 읽는 중 문제가 생겼어요: "+err.message); }
+  };
+  reader.readAsText(f,"utf-8");
+});
+document.getElementById("ddate").addEventListener("change",render);
+
+// ===== 자동 로드: data.txt 가 있으면 열자마자 랭킹 표시 =====
+function fetchText(url){
+  return fetch(url,{cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); });
+}
+(function boot(){
+  // overrides 먼저(있으면), 그다음 data.txt
+  fetchText("overrides.csv").then(function(t){ OVERRIDES=parseOverrides(t); }, function(){ OVERRIDES={}; })
+  .then(function(){ return fetchText("data.txt"); })
+  .then(function(raw){
+    var msgs=parseText(raw);
+    RECORDS=buildRecords(msgs);
+    if(!RECORDS.length) throw new Error("no records");
+    VIEWER=true;                 // 공유(읽기) 모드
+    render();                    // 업로더/검토 숨긴 채 랭킹 표시
+  })
+  .catch(function(){
+    // data.txt 없음(로컬 file:// 또는 미배포) → 직접 파일 선택 모드
+    enableUploader();
+  });
+})();
+</script>
+</body>
+</html>
