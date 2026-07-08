@@ -150,12 +150,13 @@ var FLAG_OVER_MIN = 600;
 var KNUM = {한:1,두:2,세:3,석:3,네:4,넉:4,다섯:5,여섯:6,일곱:7,여덟:8,아홉:9,열:10};
 var KOR = "한|두|세|석|네|넉|다섯|여섯|일곱|여덟|아홉|열";
 function makeTimeRe(){return new RegExp(
-  "(\\d+)\\s*시간\\s*(\\d+)\\s*분"+
-  "|(\\d+)\\s*시간\\s*반"+
-  "|(\\d+)\\s*시간"+
-  "|("+KOR+")\\s*시간\\s*반"+
-  "|("+KOR+")\\s*시간"+
-  "|(\\d+)\\s*분","g");}
+  "(\\d+)\\s*시간\\s*(\\d+)\\s*분"+     // 1,2  N시간 M분
+  "|(\\d+)\\s*시간\\s*반"+              // 3    N시간 반
+  "|(\\d+\\.\\d+)\\s*시간"+             // 4    3.5시간 (소수)
+  "|(\\d+)\\s*시간"+                    // 5    N시간
+  "|(?<![가-힣])("+KOR+")\\s*시간\\s*반"+  // 6    한글시간 반 (앞에 다른 한글 있으면 제외)
+  "|(?<![가-힣])("+KOR+")\\s*시간"+        // 7    한글시간 (귀한/무한 등 오인식 방지)
+  "|(\\d+)\\s*분","g");}                // 8    N분
 
 function extractMinutes(text){
   var re=makeTimeRe(), vals=[], m;
@@ -164,10 +165,11 @@ function extractMinutes(text){
     var mins=0;
     if(m[1]!==undefined) mins=+m[1]*60+ +m[2];
     else if(m[3]!==undefined) mins=+m[3]*60+30;
-    else if(m[4]!==undefined) mins=+m[4]*60;
-    else if(m[5]!==undefined) mins=KNUM[m[5]]*60+30;
-    else if(m[6]!==undefined) mins=KNUM[m[6]]*60;
-    else if(m[7]!==undefined) mins=+m[7];
+    else if(m[4]!==undefined) mins=Math.round(parseFloat(m[4])*60);
+    else if(m[5]!==undefined) mins=+m[5]*60;
+    else if(m[6]!==undefined) mins=KNUM[m[6]]*60+30;
+    else if(m[7]!==undefined) mins=KNUM[m[7]]*60;
+    else if(m[8]!==undefined) mins=+m[8];
     if(mins>0) vals.push(mins);
   }
   return vals;
@@ -228,17 +230,22 @@ var SORTED_DATES=[];
 var OVERRIDES={};
 var VIEWER=false;    // true면 공유(읽기) 모드: 업로더/검토 숨김
 
+// 봇 랭킹공지/홍보 메시지(🏆·랭킹 공개·bit.ly 링크)는 시간 집계에서 제외
+function isAnnouncement(t){ return /🏆|몰입\s*랭킹\s*공개|bit\.ly\/theblab_challenge/.test(t); }
 function buildRecords(messages){
   var recs=[];
   for(var i=0;i<messages.length;i++){
-    var vals=extractMinutes(messages[i].text);
-    if(vals.length===0) continue;
-    var minutes=Math.max.apply(null,vals);
+    if(isAnnouncement(messages[i].text)) continue;
     var r=messages[i];
+    var vals=extractMinutes(r.text);
+    if(vals.length===0) continue;
+    // "총"이 든 메시지는 대표값(최댓값), 그 외 여러 활동은 합산
+    var auto=/총/.test(r.text)?Math.max.apply(null,vals):vals.reduce(function(a,b){return a+b;},0);
+    var minutes=auto;
     var key=r.date+"|"+r.time+"|"+r.author;
     var flag=(minutes>FLAG_OVER_MIN||vals.length>1), reviewed=false;
     if(OVERRIDES.hasOwnProperty(key)){ minutes=OVERRIDES[key]; reviewed=true; } // 보정값 적용
-    recs.push({date:r.date,time:r.time,author:r.author,autoMin:Math.max.apply(null,vals),minutes:minutes,
+    recs.push({date:r.date,time:r.time,author:r.author,autoMin:auto,minutes:minutes,
       flag:flag,reviewed:reviewed,text:r.text,key:key});
   }
   return recs;
