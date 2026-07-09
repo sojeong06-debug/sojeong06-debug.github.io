@@ -239,8 +239,8 @@ function buildRecords(messages){
     var r=messages[i];
     var vals=extractMinutes(r.text);
     if(vals.length===0) continue;
-    // "총"이 든 메시지는 대표값(최댓값), 그 외 여러 활동은 합산
-    var auto=/총/.test(r.text)?Math.max.apply(null,vals):vals.reduce(function(a,b){return a+b;},0);
+    // "총/포함/설정"이 든 정리형 메시지는 맨 앞 대표 시간, 그 외 여러 활동은 합산
+    var auto=/총|포함|설정/.test(r.text)?vals[0]:vals.reduce(function(a,b){return a+b;},0);
     var minutes=auto;
     var key=r.date+"|"+r.time+"|"+r.author;
     var flag=(minutes>FLAG_OVER_MIN||vals.length>1), reviewed=false;
