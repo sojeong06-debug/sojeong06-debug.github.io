@@ -232,6 +232,16 @@ var VIEWER=false;    // true면 공유(읽기) 모드: 업로더/검토 숨김
 
 // 봇 랭킹공지/홍보 메시지(🏆·랭킹 공개·bit.ly 링크)는 시간 집계에서 제외
 function isAnnouncement(t){ return /🏆|몰입\s*랭킹\s*공개|bit\.ly\/theblab_challenge/.test(t); }
+// 한 메시지의 대표 몰입시간 결정
+//  1) "설정/포함" (목표·중복 표현) → 맨 앞 대표 시간   예) 몰입독서 1시간50분 (1시간30분 포함) 2시간 설정
+//  2) "총"        → 총 뒤에 적은 합계               예) 셋트(총30분)…, 필사40분 미래일기15분 총 1시간
+//  3) 그 외       → 서로 다른 활동이므로 합산        예) 3시간 행정학 1시간 영어 1시간 단어
+function pickMinutes(text,vals){
+  if(/설정|포함/.test(text)) return vals[0];
+  var i=text.indexOf("총");
+  if(i>=0){ var a=extractMinutes(text.slice(i)); return a.length?a[0]:vals[0]; }
+  return vals.reduce(function(a,b){return a+b;},0);
+}
 function buildRecords(messages){
   var recs=[];
   for(var i=0;i<messages.length;i++){
@@ -239,8 +249,7 @@ function buildRecords(messages){
     var r=messages[i];
     var vals=extractMinutes(r.text);
     if(vals.length===0) continue;
-    // "총/포함/설정"이 든 정리형 메시지는 맨 앞 대표 시간, 그 외 여러 활동은 합산
-    var auto=/총|포함|설정/.test(r.text)?vals[0]:vals.reduce(function(a,b){return a+b;},0);
+    var auto=pickMinutes(r.text,vals);
     var minutes=auto;
     var key=r.date+"|"+r.time+"|"+r.author;
     var flag=(minutes>FLAG_OVER_MIN||vals.length>1), reviewed=false;
